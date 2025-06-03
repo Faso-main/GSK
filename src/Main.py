@@ -5,6 +5,7 @@ import math
 from PIL import Image, ImageTk
 from Point import Point
 from GraphicObject import GraphicObject,Cross,Flag,Line,BezierCurve
+from Transformations import Transformations
 
 
 class Transformations:
