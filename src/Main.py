@@ -6,158 +6,9 @@ from PIL import Image, ImageTk
 from Point import Point
 from GraphicObject import GraphicObject,Cross,Flag,Line,BezierCurve
 from Transformations import Transformations
+from TMO import SetOperations
 
 
-class SetOperations:
-    @staticmethod
-    def get_pixel_buffer(width, height):
-        # Возвращает пустой пиксельный буфер (белый фон)
-        return np.full((height, width, 3), 255, dtype=np.uint8)
-
-    @staticmethod
-    def hex_to_rgb(hex_color):
-        hex_color = hex_color.lstrip('#')
-        return np.array([int(hex_color[i:i+2], 16) for i in (0, 2, 4)], dtype=np.uint8)
-
-    @staticmethod
-    def rgb_to_hex(rgb_color):
-        return '#%02x%02x%02x' % tuple(rgb_color)
-
-    @staticmethod
-    def intersection(editor_instance, obj1, obj2):
-        # Выполнение операции пересечения на пиксельном уровне
-        if not (isinstance(obj1, (Cross, Flag)) and isinstance(obj2, (Cross, Flag))):
-            messagebox.showwarning("ТМО: Пересечение", "Пиксельное пересечение поддерживается только для Креста и Флага. Выберите два таких объекта.")
-            return
-
-        # Создаем два временных буфера
-        buffer1 = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-        buffer2 = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-
-        # Рисуем первый объект в первый буфер
-        # Используем непрозрачный цвет заливки для ТМО
-        original_fill_color1 = obj1.fill_color
-        obj1.fill_color = "#FF0000" # Красный для obj1
-        obj1.draw(editor_instance, pixel_buffer=buffer1)
-        obj1.fill_color = original_fill_color1 # Восстанавливаем оригинальный цвет
-
-        # Рисуем второй объект во второй буфер
-        original_fill_color2 = obj2.fill_color
-        obj2.fill_color = "#0000FF" # Синий для obj2
-        obj2.draw(editor_instance, pixel_buffer=buffer2)
-        obj2.fill_color = original_fill_color2 # Восстанавливаем оригинальный цвет
-
-        # Создаем буфер для результата
-        result_buffer = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-        intersection_color = SetOperations.hex_to_rgb("#00FF00") # Зеленый для пересечения
-
-        # Проходим по всем пикселям и применяем логику пересечения
-        # Если пиксель окрашен в обоих буферах (не белый), то это пересечение
-        white = np.array([255, 255, 255], dtype=np.uint8)
-        for y in range(editor_instance.canvas_height):
-            for x in range(editor_instance.canvas_width):
-                pixel1_is_colored = not np.array_equal(buffer1[y, x], white)
-                pixel2_is_colored = not np.array_equal(buffer2[y, x], white)
-
-                if pixel1_is_colored and pixel2_is_colored:
-                    result_buffer[y, x] = intersection_color
-                else:
-                    result_buffer[y, x] = white # Остальное белое
-
-        # Отображаем результат на Canvas
-        editor_instance.pixels = result_buffer
-        editor_instance.update_canvas_image()
-        messagebox.showinfo("ТМО: Пересечение", "Результат пересечения отображен на холсте.")
-
-    @staticmethod
-    def difference(editor_instance, obj1, obj2):
-        # Выполнение операции разности (obj1 - obj2) на пиксельном уровне
-        if not (isinstance(obj1, (Cross, Flag)) and isinstance(obj2, (Cross, Flag))):
-            messagebox.showwarning("ТМО: Разность", "Пиксельная разность поддерживается только для Креста и Флага. Выберите два таких объекта.")
-            return
-
-        # Создаем два временных буфера
-        buffer1 = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-        buffer2 = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-
-        # Рисуем первый объект в первый буфер
-        original_fill_color1 = obj1.fill_color
-        obj1.fill_color = "#FF0000" # Красный для obj1
-        obj1.draw(editor_instance, pixel_buffer=buffer1)
-        obj1.fill_color = original_fill_color1
-
-        # Рисуем второй объект во второй буфер
-        original_fill_color2 = obj2.fill_color
-        obj2.fill_color = "#0000FF" # Синий для obj2
-        obj2.draw(editor_instance, pixel_buffer=buffer2)
-        obj2.fill_color = original_fill_color2
-
-        # Создаем буфер для результата
-        result_buffer = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-        difference_color = SetOperations.hex_to_rgb("#FFA500") # Оранжевый для разности
-
-        # Проходим по всем пикселям и применяем логику разности (A - B)
-        # Если пиксель окрашен в буфере 1, но не окрашен в буфере 2
-        white = np.array([255, 255, 255], dtype=np.uint8)
-        for y in range(editor_instance.canvas_height):
-            for x in range(editor_instance.canvas_width):
-                pixel1_is_colored = not np.array_equal(buffer1[y, x], white)
-                pixel2_is_colored = not np.array_equal(buffer2[y, x], white)
-
-                if pixel1_is_colored and not pixel2_is_colored:
-                    result_buffer[y, x] = difference_color
-                else:
-                    result_buffer[y, x] = white
-
-        # Отображаем результат на Canvas
-        editor_instance.pixels = result_buffer
-        editor_instance.update_canvas_image()
-        messagebox.showinfo("ТМО: Разность", "Результат разности (A - B) отображен на холсте.")
-
-    @staticmethod
-    def union(editor_instance, obj1, obj2):
-        # Выполнение операции объединения на пиксельном уровне
-        if not (isinstance(obj1, (Cross, Flag)) and isinstance(obj2, (Cross, Flag))):
-            messagebox.showwarning("ТМО: Объединение", "Пиксельное объединение поддерживается только для Креста и Флага. Выберите два таких объекта.")
-            return
-
-        # Создаем два временных буфера
-        buffer1 = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-        buffer2 = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-
-        # Рисуем первый объект в первый буфер
-        original_fill_color1 = obj1.fill_color
-        obj1.fill_color = "#FF0000" # Красный для obj1
-        obj1.draw(editor_instance, pixel_buffer=buffer1)
-        obj1.fill_color = original_fill_color1
-
-        # Рисуем второй объект во второй буфер
-        original_fill_color2 = obj2.fill_color
-        obj2.fill_color = "#0000FF" # Синий для obj2
-        obj2.draw(editor_instance, pixel_buffer=buffer2)
-        obj2.fill_color = original_fill_color2
-
-        # Создаем буфер для результата
-        result_buffer = SetOperations.get_pixel_buffer(editor_instance.canvas_width, editor_instance.canvas_height)
-        union_color = SetOperations.hex_to_rgb("#800080") # Пурпурный для объединения
-
-        # Проходим по всем пикселям и применяем логику объединения
-        # Если пиксель окрашен хотя бы в одном из буферов
-        white = np.array([255, 255, 255], dtype=np.uint8)
-        for y in range(editor_instance.canvas_height):
-            for x in range(editor_instance.canvas_width):
-                pixel1_is_colored = not np.array_equal(buffer1[y, x], white)
-                pixel2_is_colored = not np.array_equal(buffer2[y, x], white)
-
-                if pixel1_is_colored or pixel2_is_colored:
-                    result_buffer[y, x] = union_color
-                else:
-                    result_buffer[y, x] = white
-
-        # Отображаем результат на Canvas
-        editor_instance.pixels = result_buffer
-        editor_instance.update_canvas_image()
-        messagebox.showinfo("ТМО: Объединение", "Результат объединения отображен на холсте.")
 
 
 class GraphicEditor:
@@ -273,7 +124,6 @@ class GraphicEditor:
         tk.Button(toolbar, text="Цвет обводки", command=self.choose_outline_color).pack(side=tk.LEFT, padx=2, pady=2)
         tk.Button(toolbar, text="Цвет заливки", command=self.choose_fill_color).pack(side=tk.LEFT, padx=2, pady=2)
         tk.Button(toolbar, text="ТМО", command=self.select_tmo_objects_mode).pack(side=tk.LEFT, padx=2, pady=2)
-
 
     def hex_to_rgb(self, hex_color):
         # Преобразование шестнадцатеричного строкового представления цвета в кортеж RGB
@@ -445,6 +295,82 @@ class GraphicEditor:
         else:
             # Режим выбора объекта: попытка выбрать объект по клику
             self.select_object_at_click(event.x, event.y)
+
+    def wu_line(self, p0, p1, color, pixel_buffer=None):
+        """Алгоритм Ву для сглаженных линий"""
+        x0, y0 = p0.x, p0.y
+        x1, y1 = p1.x, p1.y
+        
+        def plot(x, y, brightness):
+            """Вспомогательная функция для отрисовки пикселя с прозрачностью"""
+            r, g, b = self.hex_to_rgb(color)
+            if 0 <= y < self.canvas_height and 0 <= x < self.canvas_width:
+                if pixel_buffer is not None:
+                    buffer = pixel_buffer
+                else:
+                    buffer = self.pixels
+                
+                # Смешивание цветов с учетом прозрачности
+                new_r = int(buffer[y, x][0] * (1 - brightness) + r * brightness)
+                new_g = int(buffer[y, x][1] * (1 - brightness) + g * brightness)
+                new_b = int(buffer[y, x][2] * (1 - brightness) + b * brightness)
+                
+                buffer[y, x] = [new_r, new_g, new_b]
+
+        # Определяем, является ли линия более вертикальной или горизонтальной
+        steep = abs(y1 - y0) > abs(x1 - x0)
+        
+        if steep:
+            x0, y0 = y0, x0
+            x1, y1 = y1, x1
+        
+        if x0 > x1:
+            x0, x1 = x1, x0
+            y0, y1 = y1, y0
+        
+        dx = x1 - x0
+        dy = y1 - y0
+        gradient = dy / dx if dx != 0 else 1
+        
+        # Первая конечная точка
+        xend = round(x0)
+        yend = y0 + gradient * (xend - x0)
+        xgap = 1 - (x0 + 0.5) % 1
+        xpxl1 = xend
+        ypxl1 = int(yend)
+        
+        if steep:
+            plot(ypxl1, xpxl1, (1 - (yend % 1)) * xgap)
+            plot(ypxl1 + 1, xpxl1, (yend % 1) * xgap)
+        else:
+            plot(xpxl1, ypxl1, (1 - (yend % 1)) * xgap)
+            plot(xpxl1, ypxl1 + 1, (yend % 1) * xgap)
+        
+        intery = yend + gradient
+        
+        # Вторая конечная точка
+        xend = round(x1)
+        yend = y1 + gradient * (xend - x1)
+        xgap = (x1 + 0.5) % 1
+        xpxl2 = xend
+        ypxl2 = int(yend)
+        
+        if steep:
+            plot(ypxl2, xpxl2, (1 - (yend % 1)) * xgap)
+            plot(ypxl2 + 1, xpxl2, (yend % 1) * xgap)
+        else:
+            plot(xpxl2, ypxl2, (1 - (yend % 1)) * xgap)
+            plot(xpxl2, ypxl2 + 1, (yend % 1) * xgap)
+        
+        # Основной цикл
+        for x in range(xpxl1 + 1, xpxl2):
+            if steep:
+                plot(int(intery), x, 1 - (intery % 1))
+                plot(int(intery) + 1, x, intery % 1)
+            else:
+                plot(x, int(intery), 1 - (intery % 1))
+                plot(x, int(intery) + 1, intery % 1)
+            intery += gradient
 
     def on_canvas_right_click(self, event):
         # Обработчик события клика правой кнопкой мыши

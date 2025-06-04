@@ -34,12 +34,10 @@ class GraphicObject:
             return
 
         sum_x = sum(p.x for p in self.points) # Сумма всех X-координат
-        #print(f'Result X:{sum_x}')
         sum_y = sum(p.y for p in self.points) # Сумма всех Y-координат
-        #print(f'Result X:{sum_y}')
         meanX=sum_x / len(self.points)
         meanY=sum_y / len(self.points)
-        print(f'Reslut:{len(self.points)}')
+        print(f'Result:{len(self.points)}')
         self.center = Point(meanX, meanY) # Вычисление среднего арифметического для X и Y
 
 
@@ -110,14 +108,16 @@ class BezierCurve(GraphicObject):
         self.recalculate_curve_points() # Пересчет точек кривой на основе контрольных точек
         self.calculate_center() # Вычисление центра кривой
 
-    def recalculate_curve_points(self, num_segments=100):
-        # Пересчет точек кривой на основе контрольных точек и количества сегментов
-        self.points = [] # Очистка списка точек кривой
-        if len(self.control_points) < 2: # Не менее двух контрольных точек для кривой
-            return
-        for i in range(num_segments + 1): # Итерация по количеству сегментов
-            t = i / num_segments # Параметр t от 0 до 1
-            self.points.append(self._de_casteljau(t)) # Добавление точки, вычисленной по алгоритму Де Кастельжо
+    def recalculate_curve_points(self, num_segments=None):
+        # Автоматическое определение количества сегментов
+        if num_segments is None:
+            # Чем больше контрольных точек, тем больше сегментов
+            num_segments = 50 + 10 * len(self.control_points)
+        
+        self.points = []
+        for i in range(num_segments + 1):
+            t = i / num_segments
+            self.points.append(self._de_casteljau(t))
 
     def _de_casteljau(self, t):
         # Реализация алгоритма Де Кастельжо для вычисления точки на кривой Безье
@@ -144,14 +144,14 @@ class BezierCurve(GraphicObject):
         self.calculate_center() # Пересчет центра кривой
 
     def draw(self, editor_instance, pixel_buffer=None):
-        # Отрисовка кривой путем соединения ее точек отрезками
         if len(self.points) > 1:
+            # Используем алгоритм Ву вместо Брезенхема
             for i in range(len(self.points) - 1):
-                editor_instance.bresenham_line(self.points[i], self.points[i+1], self.color, pixel_buffer=pixel_buffer) # Отрисовка отрезка между соседними точками кривой
-
-        # Опциональная отрисовка контрольных точек
-        # Обычно контрольные точки не рисуются в буферы для ТМО
-        if pixel_buffer is None: # Рисуем контрольные точки только на основном холсте
+                editor_instance.wu_line(self.points[i], self.points[i+1], 
+                                    self.color, pixel_buffer)
+        
+        # Отрисовка контрольных точек (опционально)
+        if pixel_buffer is None:  # Только на основном холсте
             for cp in self.control_points:
-                editor_instance.put_pixel(cp.x, cp.y, "#0000FF", width=3) # Отрисовка контрольных точек синим цветом
+                editor_instance.put_pixel(cp.x, cp.y, "#0000FF", width=3)
 

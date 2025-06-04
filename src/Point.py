@@ -12,7 +12,7 @@ class Point:
         return np.array([self.x, self.y, 1])
 
     @staticmethod
-    def from_uniform(matrix):
+    def from_uniform(matrix: np.array):
         # Преобразование из однородных координат обратно в обычные пиксельные координаты
         if matrix.shape == (3,): # Если входная матрица представляет собой вектор (1D массив)
             if matrix[2] != 0: # Проверка на нулевой третий элемент для деления
