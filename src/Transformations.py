@@ -64,6 +64,7 @@ class Transformations:
         T2 = Transformations.translation_matrix(center_x, center_y)
         # Комбинирование матриц преобразований: T1 -> R -> T2
         transform_matrix = np.dot(np.dot(T1, R), T2)
+        #print(transform_matrix)
         obj.apply_transform(transform_matrix) # Применение полученной матрицы к объекту
 
     @staticmethod

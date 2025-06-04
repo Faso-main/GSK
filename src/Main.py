@@ -819,6 +819,9 @@ class GraphicEditor:
 
 
 if __name__ == "__main__":
-    root = tk.Tk() # Создание главного окна Tkinter
-    app = GraphicEditor(root) # Создание экземпляра графического редактора
-    root.mainloop() # Запуск главного цикла Tkinter
+    try:
+        root = tk.Tk() # Создание главного окна Tkinter
+        app = GraphicEditor(root) # Создание экземпляра графического редактора
+        root.mainloop() # Запуск главного цикла Tkinter
+    except KeyboardInterrupt as e: print(f'Stopped by user......') # Остновка ctrl=+c
+    except Exception as e: print(f'Error: {e}') # Общая обработка ошибок
