@@ -1,157 +1,161 @@
 import numpy as np
-from Point import Point
+from Point import Point # Убедитесь, что Point.py находится в той же директории или доступен в PYTHONPATH
 
 
 # Базовый класс для всех графических фигур
 class GraphicObject:
     def __init__(self, color="#000000", fill_color="#0003AEFF"):
-        self.points = [] # Список точек, определяющих фигуру
-        self.color = color # Цвет контура фигуры (по умолчанию черный)
-        self.fill_color = fill_color # Цвет заливки фигуры (по умолчанию полупрозрачный зеленый)
+        self.points = [] # Список вершин/ключевых точек фигуры (декартовы координаты)
+        self.color = color # Цвет контура
+        self.fill_color = fill_color # Цвет заливки
         self.id = None
-        self.center = Point(0, 0) # Центр фигуры (инициализируется в (0,0))
-        self.calculate_center() # Вычисление центра фигуры при создании
+        self.center = Point(0, 0) # Центр фигуры (вычисляется из points)
+        self.calculate_center() # Вычислить центр при создании
 
     def draw(self, editor_instance, pixel_buffer=None):
-        # Метод для отрисовки объекта, должен быть переопределен в дочерних классах
-        # Добавлен параметр pixel_buffer для рисования во временные буферы
-        raise NotImplementedError
+        raise NotImplementedError # Должен быть переопределен для отрисовки конкретной фигуры
 
     def apply_transform(self, transform_matrix):
-        # Применение матрицы преобразования ко всем точкам объекта
+        # Применение матрицы преобразования к каждой точке объекта
         new_points_homogeneous = []
         for p in self.points:
-            hom_coords = p.to_uniform() # Преобразование текущей точки в однородные координаты
-            transformed_hom_coords = np.dot(hom_coords, transform_matrix) # Умножение на матрицу преобразования
-            new_points_homogeneous.append(Point.from_uniform(transformed_hom_coords)) # Преобразование обратно из однородных координат
-        self.points = new_points_homogeneous # Обновление списка точек объекта
-        self.calculate_center() # Пересчет центра фигуры после преобразования
+            # 1. Точка в однородные: [x, y, 1]
+            hom_coords = p.to_uniform()
+            # 2. Умножение на матрицу преобразования: [X', Y', W'] = [x, y, 1] . M
+            transformed_hom_coords = np.dot(hom_coords, transform_matrix)
+            # 3. Обратно в декартовы: Point(X'/W', Y'/W')
+            new_points_homogeneous.append(Point.from_uniform(transformed_hom_coords))
+        self.points = new_points_homogeneous # Обновить точки фигуры
+        self.calculate_center() # Пересчитать центр
 
     def calculate_center(self):
-        # Вычисление центра объекта путем усреднения координат всех его точек
-        if not self.points: # Если у объекта нет точек, центр остается (0,0)
+        # Вычисление среднего арифметического координат всех точек объекта
+        if not self.points:
             self.center = Point(0, 0)
             return
 
-        sum_x = sum(p.x for p in self.points) # Сумма всех X-координат
-        sum_y = sum(p.y for p in self.points) # Сумма всех Y-координат
-        meanX=sum_x / len(self.points)
-        meanY=sum_y / len(self.points)
-        print(f'Result:{len(self.points)}')
-        self.center = Point(meanX, meanY) # Вычисление среднего арифметического для X и Y
-
+        # Среднее по X: sum(x_i) / N
+        sum_x = sum(p.x for p in self.points)
+        meanX = sum_x / len(self.points)
+        # Среднее по Y: sum(y_i) / N
+        sum_y = sum(p.y for p in self.points)
+        meanY = sum_y / len(self.points)
+        # print(f'Result:{len(self.points)}') # Отладочный вывод
+        self.center = Point(meanX, meanY) # Установить центр
 
 # Класс для рисования линии (отрезка)
 class Line(GraphicObject):
     def __init__(self, p1, p2, color="#000000"):
-        super().__init__(color=color) # Вызов конструктора базового класса с заданным цветом
-        self.points = [p1, p2] # Линия определяется двумя точками
-        self.calculate_center() # Вычисление центра линии
+        super().__init__(color=color)
+        self.points = [p1, p2] # Две конечные точки линии: P1=(x1,y1), P2=(x2,y2)
+        self.calculate_center()
 
     def draw(self, editor_instance, pixel_buffer=None):
-        # Отрисовка линии с использованием алгоритма Брезенхэма
-        editor_instance.bresenham_line(self.points[0], self.points[1], self.color, pixel_buffer=pixel_buffer) # Вызов метода отрисовки линии редактора
-
+        # Отрисовка линии: передача начальной и конечной точки для отрисовки
+        editor_instance.bresenham_line(self.points[0], self.points[1], self.color, pixel_buffer=pixel_buffer)
 
 # Класс для рисования креста (Kr)
 class Cross(GraphicObject):
     def __init__(self, center_x, center_y, size, color="#000000", fill_color="#FFFFFFFF"):
-        super().__init__(color=color, fill_color=fill_color) # Вызов конструктора базового класса
-        half_size = size / 2 # Половина размера креста
-        quarter_size = size / 4 # Четверть размера креста
-        # Определение точек, образующих многоугольник в форме креста
+        super().__init__(color=color, fill_color=fill_color)
+        half_size = size / 2
+        quarter_size = size / 4
+        # Определение 12 вершин многоугольника (x,y) для формы креста
         self.points = [
-            Point(center_x - quarter_size, center_y - half_size),
-            Point(center_x + quarter_size, center_y - half_size),
-            Point(center_x + quarter_size, center_y - quarter_size),
-            Point(center_x + half_size, center_y - quarter_size),
-            Point(center_x + half_size, center_y + quarter_size),
-            Point(center_x + quarter_size, center_y + quarter_size),
-            Point(center_x + quarter_size, center_y + half_size),
-            Point(center_x - quarter_size, center_y + half_size),
-            Point(center_x - quarter_size, center_y + quarter_size),
-            Point(center_x - half_size, center_y + quarter_size),
-            Point(center_x - half_size, center_y - quarter_size),
-            Point(center_x - quarter_size, center_y - quarter_size)
+            Point(center_x - quarter_size, center_y - half_size), # Верхняя левая часть верхней перекладины
+            Point(center_x + quarter_size, center_y - half_size), # Верхняя правая часть верхней перекладины
+            Point(center_x + quarter_size, center_y - quarter_size), # Правый верхний угол центра
+            Point(center_x + half_size, center_y - quarter_size), # Правая верхняя часть правой перекладины
+            Point(center_x + half_size, center_y + quarter_size), # Правая нижняя часть правой перекладины
+            Point(center_x + quarter_size, center_y + quarter_size), # Правый нижний угол центра
+            Point(center_x + quarter_size, center_y + half_size), # Нижняя правая часть нижней перекладины
+            Point(center_x - quarter_size, center_y + half_size), # Нижняя левая часть нижней перекладины
+            Point(center_x - quarter_size, center_y + quarter_size), # Левый нижний угол центра
+            Point(center_x - half_size, center_y + quarter_size), # Левая нижняя часть левой перекладины
+            Point(center_x - half_size, center_y - quarter_size), # Левая верхняя часть левой перекладины
+            Point(center_x - quarter_size, center_y - quarter_size)  # Левый верхний угол центра
         ]
-        self.calculate_center() # Вычисление центра креста
+        self.calculate_center()
 
     def draw(self, editor_instance, pixel_buffer=None):
-        # Заливка и отрисовка контура креста с использованием Scanline алгоритма
-        editor_instance.scanline_fill(self.points, self.color, self.fill_color, pixel_buffer=pixel_buffer) # Вызов метода заливки и отрисовки контура
-
+        # Заливка и отрисовка контура по всем 12 точкам
+        editor_instance.scanline_fill(self.points, self.color, self.fill_color, pixel_buffer=pixel_buffer)
 
 # Класс для рисования флага (Flag)
 class Flag(GraphicObject):
     def __init__(self, base_x, base_y, width, height, color="#000000", fill_color="#FFFFFFFF"):
         super().__init__(color=color, fill_color=fill_color)
-        # Определение точек флага с вырезанным треугольником с правого края
+        # Определение 5 вершин многоугольника (x,y) для формы флага
         self.points = [
-            Point(base_x, base_y), 
-            Point(base_x, base_y - height), 
-            Point(base_x + width, base_y - height), 
-            Point(base_x + width, base_y),
-            Point(base_x + width/2, base_y - height/2) 
+            Point(base_x, base_y),                 # Нижний левый угол
+            Point(base_x, base_y - height),        # Верхний левый угол
+            Point(base_x + width, base_y - height),# Верхний правый угол
+            Point(base_x + width, base_y),         # Нижний правый угол
+            Point(base_x + width/2, base_y - height/2) # Точка среза (треугольный "хвост" флага)
         ]
         self.calculate_center()
 
     def draw(self, editor_instance, pixel_buffer=None):
-        # Заливка и отрисовка контура флага с использованием Scanline алгоритма
-        editor_instance.scanline_fill(self.points, self.color, self.fill_color, pixel_buffer=pixel_buffer) # Вызов метода заливки и отрисовки контура
+        # Заливка и отрисовка контура по 5 точкам
+        editor_instance.scanline_fill(self.points, self.color, self.fill_color, pixel_buffer=pixel_buffer)
 
 # Класс для рисования кривой Безье
 class BezierCurve(GraphicObject):
     def __init__(self, control_points, color="#000000"):
-        super().__init__(color=color) # Вызов конструктора базового класса
-        self.control_points = control_points # Контрольные точки, используемые для построения кривой
-        self.points = [] # Точки, составляющие саму кривую Безье
-        self.recalculate_curve_points() # Пересчет точек кривой на основе контрольных точек
-        self.calculate_center() # Вычисление центра кривой
+        super().__init__(color=color)
+        self.control_points = control_points # Список контрольных точек: C_j=(cx_j, cy_j)
+        self.points = [] # Список вычисленных точек, лежащих на кривой (для отрисовки)
+        self.recalculate_curve_points() # Генерируем точки кривой из контрольных
+        self.calculate_center() # Центр вычисляется по сгенерированным точкам
 
     def recalculate_curve_points(self, num_segments=None):
-        # Автоматическое определение количества сегментов
+        # Автоматическое определение плотности точек на кривой
         if num_segments is None:
-            # Чем больше контрольных точек, тем больше сегментов
-            num_segments = 50 + 10 * len(self.control_points)
+            num_segments = 50 + 10 * len(self.control_points) # Больше контрольных точек -> больше сегментов
         
         self.points = []
         for i in range(num_segments + 1):
-            t = i / num_segments
-            self.points.append(self._de_casteljau(t))
+            t = i / num_segments # Параметр t от 0 до 1
+            self.points.append(self._de_casteljau(t)) # Вычислить точку на кривой для текущего t
 
     def _de_casteljau(self, t):
-        # Реализация алгоритма Де Кастельжо для вычисления точки на кривой Безье
-        points = list(self.control_points) # Создание копии списка контрольных точек
+        # Алгоритм Де Кастельжо: итеративная линейная интерполяция
+        # P(t) = sum( Binomial(N-1, i) * (1-t)^(N-1-i) * t^i * C_i )
+        # Где N - число контрольных точек, C_i - i-я контрольная точка.
+        points = list(self.control_points) # Создать копию для избежания изменения оригинала
 
         while len(points) > 1: # Пока не останется одна точка
             new_points = []
-            for i in range(len(points) - 1): # Итерация по парам точек
-                x = (1 - t) * points[i].x + t * points[i+1].x # Интерполяция по X
-                y = (1 - t) * points[i].y + t * points[i+1].y # Интерполяция по Y
-                new_points.append(Point(x, y)) # Добавление новой интерполированной точки
-            points = new_points # Обновление списка точек
-        return points[0] # Возвращение конечной точки на кривой
+            for i in range(len(points) - 1):
+                # Линейная интерполяция между соседними точками: (1-t)*P_i + t*P_{i+1}
+                x = (1 - t) * points[i].x + t * points[i+1].x
+                y = (1 - t) * points[i].y + t * points[i+1].y
+                new_points.append(Point(x, y))
+            points = new_points # Обновить список точек для следующей итерации
+        return points[0] # Остается одна точка - это точка на кривой Безье для данного t
 
     def apply_transform(self, transform_matrix):
-        # Применение преобразования к контрольным точкам, затем пересчет кривой
+        # Преобразование применяем к КОНТРОЛЬНЫМ точкам
         new_control_points_homogeneous = []
         for p in self.control_points:
-            hom_coords = p.to_uniform() # Преобразование контрольной точки в однородные координаты
-            transformed_hom_coords = np.dot(hom_coords, transform_matrix) # Умножение на матрицу преобразования
-            new_control_points_homogeneous.append(Point.from_uniform(transformed_hom_coords)) # Преобразование обратно
-        self.control_points = new_control_points_homogeneous # Обновление контрольных точек
-        self.recalculate_curve_points() # Пересчет точек самой кривой
-        self.calculate_center() # Пересчет центра кривой
+            # Преобразование контрольной точки в однородные: [x, y, 1]
+            hom_coords = p.to_uniform()
+            # Умножение на матрицу: [X', Y', W'] = [x, y, 1] . M
+            transformed_hom_coords = np.dot(hom_coords, transform_matrix)
+            # Обратно в декартовы: Point(X'/W', Y'/W')
+            new_control_points_homogeneous.append(Point.from_uniform(transformed_hom_coords))
+        self.control_points = new_control_points_homogeneous # Обновить контрольные точки
+        self.recalculate_curve_points() # Пересчитать точки кривой после изменения контрольных
+        self.calculate_center() # Пересчитать центр кривой
 
     def draw(self, editor_instance, pixel_buffer=None):
         if len(self.points) > 1:
-            # Используем алгоритм Ву вместо Брезенхема
+            # Отрисовка кривой как последовательности отрезков (используя точки кривой)
             for i in range(len(self.points) - 1):
                 editor_instance.wu_line(self.points[i], self.points[i+1], 
-                                    self.color, pixel_buffer)
+                                        self.color, pixel_buffer)
         
-        # Отрисовка контрольных точек (опционально)
-        if pixel_buffer is None:  # Только на основном холсте
+        # Отрисовка контрольных точек (визуальная помощь, только на основном холсте)
+        if pixel_buffer is None:
             for cp in self.control_points:
                 editor_instance.put_pixel(cp.x, cp.y, "#0000FF", width=3)
-
