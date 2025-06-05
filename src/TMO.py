@@ -8,7 +8,7 @@ class SetOperations:
     @staticmethod
     def get_pixel_buffer(width, height):
         # Возвращает пустой пиксельный буфер (белый фон)
-        return np.full((height, width, 3), 255, dtype=np.uint8)
+        return np.full((height, width, 3), 255, dtype=np.uint8) # 1400x600, каждый 3х3
 
     @staticmethod
     def hex_to_rgb(hex_color):
@@ -17,6 +17,8 @@ class SetOperations:
 
     @staticmethod
     def rgb_to_hex(rgb_color):
+        #  Использует форматирование строк %02x для преобразования каждого десятичного значения компонента цвета в 
+        # двухсимвольное шестнадцатеричное представление.
         return '#%02x%02x%02x' % tuple(rgb_color)
 
     @staticmethod
@@ -95,12 +97,15 @@ class SetOperations:
         # Проходим по всем пикселям и применяем логику разности (A - B)
         # Если пиксель окрашен в буфере 1, но не окрашен в буфере 2
         white = np.array([255, 255, 255], dtype=np.uint8)
-        for y in range(editor_instance.canvas_height):
+        # Циклы for y in range(...) и for x in range(...) перебирают каждый пиксель на холсте.
+        for y in range(editor_instance.canvas_height): 
             for x in range(editor_instance.canvas_width):
+                # Проверяет, отличается ли цвет пикселя (x, y) в buffer1 от белого (т.е., принадлежит ли он obj1)
+                # np.array_equal используется для сравнения массивов RGB-значений.
                 pixel1_is_colored = not np.array_equal(buffer1[y, x], white)
                 pixel2_is_colored = not np.array_equal(buffer2[y, x], white)
 
-                if pixel1_is_colored and not pixel2_is_colored:
+                if pixel1_is_colored and not pixel2_is_colored: # Логика пересечения
                     result_buffer[y, x] = difference_color
                 else:
                     result_buffer[y, x] = white
